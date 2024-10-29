@@ -5,6 +5,14 @@ phases:
       java: latest
     commands:
        - apt update
+       - apt install apt-transport-https ca-certificates curl software-properties-common
+       - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+       - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+       - apt update
+       - apt-cache policy docker-ce
+       - apt install docker-ce
+       
+       - apt update
        - apt-get install -y git python3 python3-pip
        - pip install awscli
        - curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
