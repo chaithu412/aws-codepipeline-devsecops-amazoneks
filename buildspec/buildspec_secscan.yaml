@@ -28,7 +28,7 @@ phases:
       - echo -e "\n Running Dockerfile Scan"
       - checkov -f code/app/Dockerfile --framework dockerfile --soft-fail --summary-position bottom
       - echo -e "\n Running Scan of Helm Chart files"
-      - cp -pv helm_charts/helm_charts/aws-proserve-java-greeting/values.dev.yaml helm_charts/$EKS_CODEBUILD_APP_NAME/values.yaml
+      - cp -pv helm_charts/helm_charts/$EKS_CODEBUILD_APP_NAME/values.dev.yaml helm_charts/$EKS_CODEBUILD_APP_NAME/values.yaml
       - checkov -d helm_charts/$EKS_CODEBUILD_APP_NAME --framework helm --soft-fail --summary-position bottom
       - rm -rfv helm_charts/$EKS_CODEBUILD_APP_NAME/values.yaml
       - echo -e "\nRunning Static Code Analysis of app using AWS CodeGuru"
