@@ -1,0 +1,57 @@
+version: 0.2
+phases:
+  install: # Install AWS CLI v2, kubectl, and Helm3
+    commands:
+      - echo "Starting the install phase..."
+      - apt-get update
+      - apt-get install -y git python3 unzip curl
+      # Install AWS CLI v2
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip awscliv2.zip
+      - ./aws/install
+      - aws --version
+      # Install aws-iam-authenticator
+      - curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
+      - chmod +x ./aws-iam-authenticator
+      - mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$PATH:$HOME/bin
+      # Install kubectl (latest stable release)
+      - curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
+      - chmod +x kubectl
+      - mv ./kubectl /usr/local/bin/kubectl
+      # Install Helm v3
+      - curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - helm repo add stable https://charts.helm.sh/stable && helm repo update
+ 
+  pre_build: # Set up kubeconfig for EKS and validate readiness
+    commands:
+      - echo "Starting the pre_build phase..."
+      - helm version
+      - mkdir -p ~/.kube/
+      - echo "Updating kubeconfig for EKS..."
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $EKS_CLUSTER_NAME --role-arn $EKS_CODEBUILD_ROLE_ARN || exit 1
+      - echo "Validating kubeconfig..."
+      - cat ~/.kube/config
+      - chmod 0600 ~/.kube/config
+      - echo "Checking AWS identity..."
+      - aws sts get-caller-identity
+      - echo "Validating kubectl connection to cluster..."
+      - kubectl get nodes || exit 1
+ 
+  build: # Deploy app via Helm
+    commands:
+      - echo "Starting the build phase..."
+      - helm upgrade -i $EKS_CODEBUILD_APP_NAME-$ENV helm_charts/$EKS_CODEBUILD_APP_NAME \
+        -f helm_charts/$EKS_CODEBUILD_APP_NAME/values.$ENV.yaml \
+        --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME \
+        --set image.tag=$CODEBUILD_RESOLVED_SOURCE_VERSION || exit 1
+ 
+  post_build: # Validate deployment and output the application endpoint
+    commands:
+      - echo "Starting the post_build phase..."
+      - bash -c "if [ \"$CODEBUILD_BUILD_SUCCEEDING\" == \"0\" ]; then echo 'Build failed'; exit 1; fi"
+      - echo "Waiting for the application to become ready..."
+      - sleep 60
+      - JAVA_APP_ENDPOINT=$(kubectl get svc $EKS_CODEBUILD_APP_NAME-$ENV -o jsonpath="{.status.loadBalancer.ingress[*].hostname}") || exit 1
+      - echo "The Java application can be accessed via http://$JAVA_APP_ENDPOINT/hello"
+
+has context menu
