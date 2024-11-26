@@ -53,5 +53,3 @@ phases:
       - sleep 60
       - JAVA_APP_ENDPOINT=$(kubectl get svc $EKS_CODEBUILD_APP_NAME-$ENV -o jsonpath="{.status.loadBalancer.ingress[*].hostname}") || exit 1
       - echo "The Java application can be accessed via http://$JAVA_APP_ENDPOINT/hello"
-
-has context menu
