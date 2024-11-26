@@ -1,6 +1,6 @@
 version: 0.2
 phases:
-  install: # Install AWS CLI v2, kubectl, and Helm3
+  install:
     commands:
       - echo "Starting the install phase..."
       - apt-get update
@@ -14,7 +14,7 @@ phases:
       - curl -o aws-iam-authenticator https://s3.us-west-2.amazonaws.com/amazon-eks/1.21.2/2021-07-05/bin/linux/amd64/aws-iam-authenticator
       - chmod +x ./aws-iam-authenticator
       - mkdir -p $HOME/bin && cp ./aws-iam-authenticator $HOME/bin/aws-iam-authenticator && export PATH=$PATH:$HOME/bin
-      # Install kubectl (latest stable release)
+      # Install kubectl
       - curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl
       - chmod +x kubectl
       - mv ./kubectl /usr/local/bin/kubectl
@@ -22,22 +22,29 @@ phases:
       - curl -sSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       - helm repo add stable https://charts.helm.sh/stable && helm repo update
  
-  pre_build: # Set up kubeconfig for EKS and validate readiness
+  pre_build:
     commands:
       - echo "Starting the pre_build phase..."
+      - echo "Checking AWS environment variables..."
+      - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"us-west-2"}
+      - echo "Region: $AWS_DEFAULT_REGION"
+      - echo "Cluster Name: $EKS_CLUSTER_NAME"
       - helm version
       - mkdir -p ~/.kube/
-      - echo "Updating kubeconfig for EKS..."
+      # Update kubeconfig for EKS
+      - echo "Updating kubeconfig..."
       - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $EKS_CLUSTER_NAME --role-arn $EKS_CODEBUILD_ROLE_ARN || exit 1
       - echo "Validating kubeconfig..."
       - cat ~/.kube/config
       - chmod 0600 ~/.kube/config
+      # Validate AWS identity
       - echo "Checking AWS identity..."
       - aws sts get-caller-identity
+      # Validate kubectl connection
       - echo "Validating kubectl connection to cluster..."
-      - kubectl get nodes || exit 1
+      - kubectl get nodes || { echo "Failed to connect to the cluster. Exiting."; exit 1; }
  
-  build: # Deploy app via Helm
+  build:
     commands:
       - echo "Starting the build phase..."
       - helm upgrade -i $EKS_CODEBUILD_APP_NAME-$ENV helm_charts/$EKS_CODEBUILD_APP_NAME \
@@ -45,7 +52,7 @@ phases:
         --set image.repository=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME \
         --set image.tag=$CODEBUILD_RESOLVED_SOURCE_VERSION || exit 1
  
-  post_build: # Validate deployment and output the application endpoint
+  post_build:
     commands:
       - echo "Starting the post_build phase..."
       - bash -c "if [ \"$CODEBUILD_BUILD_SUCCEEDING\" == \"0\" ]; then echo 'Build failed'; exit 1; fi"
