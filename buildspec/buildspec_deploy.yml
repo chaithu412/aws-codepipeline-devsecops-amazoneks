@@ -26,7 +26,7 @@ phases:
   build: # Deploy app via Helm
     commands:
       - "helm version"
-      - cd "helm_charts/aws-proserve-java-greeting"
+      - cd "helm_charts"
       - "helm package ."
       - echo "$PWD"
       #- "helm install aws-proserve-java-greeting-0 aws-proserve-java-greeting-0.1.0.tgz"
