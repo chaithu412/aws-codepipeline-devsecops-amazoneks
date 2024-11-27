@@ -5,7 +5,7 @@ metadata:
   namespace: default
 subjects:
 - kind: User
-  name: "arn:aws:sts::909532541699:assumed-role/codebuild-aws-devsecops-amazoneks-service-role/EKSGetTokenAuth"
+  name: "arn:aws:sts::909532541699:assumed-role/codebuild-aws-devsecops-amazoneks-service-role"
   apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
